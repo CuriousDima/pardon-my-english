@@ -1,11 +1,9 @@
 import os
 
 from dotenv import load_dotenv
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from langchain.schema import HumanMessage, SystemMessage
-from langchain_core.language_models.chat_models import BaseChatModel
 
 API_KEY_ENV_VAR_NAME = "OPENAI_API_KEY"
 
@@ -21,7 +19,7 @@ load_dotenv()
 template = ChatPromptTemplate.from_messages([
     ("system", "You are a professional proofreader, you are here to help me with rewriting texts. "
      "I will provide you texts and I would like you to review and rewerite them, and fix "
-     "any style, spelling, grammar, or punctuation errors. Once you have finished reviewing the text, "
+     "any style, spelling, grammar, or punctuation errors. Once you have finished reviewing, "
      "provide me with corrected text."),
     ("human", "The text to proofread, rewrite, and fix is: {text}"),
 ])
