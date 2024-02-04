@@ -39,13 +39,32 @@ prompt: BasePromptTemplate = ChatPromptTemplate.from_messages(
 
 
 class LLMClient:
+    """
+    LLMClient is a client class for interacting with the OpenAI API.
+    """
+
     def __init__(self) -> None:
+        """
+        Initializes the LLMClient object.
+
+        Raises:
+            ValueError: If the environment variable API_KEY_ENV_VAR_NAME is not set.
+        """
         api_key: str = os.getenv(API_KEY_ENV_VAR_NAME)
         if api_key is None:
             raise ValueError(f"Environment variable {API_KEY_ENV_VAR_NAME} is not set.")
         self._llm: BaseChatModel = ChatOpenAI(openai_api_key=api_key)
 
     def proofread_and_rewrite(self, text: str) -> str:
+        """
+        Proofreads and rewrites the given text using the LLM.
+
+        Args:
+            text (str): The text to be proofread and rewritten.
+
+        Returns:
+            str: The proofread and rewritten text.
+        """
         output_parser: BaseOutputParser = StrOutputParser()
         chain: RunnableSequence = prompt | self._llm | output_parser
         return chain.invoke({"text": text})
