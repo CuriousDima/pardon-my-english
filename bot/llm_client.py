@@ -13,15 +13,6 @@ from langchain.prompts import HumanMessagePromptTemplate
 
 API_KEY_ENV_VAR_NAME: str = "OPENAI_API_KEY"
 
-# Current version expects .env file to be in the same directory as the bot.
-# The .env file contains the following:
-#     - OPENAI_API_KEY - OpenAI API key
-# However, this implementation does not allow for multiple users to use
-# the bot with their own API keys. This is a known issue.
-# We will address this in a future version.
-# TODO: Add support for multiple users with their own API keys.
-load_dotenv()
-
 SYSTEM_MESSAGE: str = (
     "You are a professional proofreader, you are here to help me with rewriting texts. "
     "I will provide you texts and I would like you to review and rewerite them, and fix "
@@ -39,25 +30,14 @@ prompt: BasePromptTemplate = ChatPromptTemplate.from_messages(
 
 
 class LLMClient:
-    """
-    LLMClient is a client class for interacting with the OpenAI API.
-    """
+    """LLMClient is a client class for interacting with the OpenAI API."""
 
-    def __init__(self) -> None:
-        """
-        Initializes the LLMClient object.
-
-        Raises:
-            ValueError: If the environment variable API_KEY_ENV_VAR_NAME is not set.
-        """
-        api_key: str = os.getenv(API_KEY_ENV_VAR_NAME)
-        if api_key is None:
-            raise ValueError(f"Environment variable {API_KEY_ENV_VAR_NAME} is not set.")
+    def __init__(self, api_key: str) -> None:
+        """Initializes the LLMClient object."""
         self._llm: BaseChatModel = ChatOpenAI(openai_api_key=api_key)
 
     def proofread_and_rewrite(self, text: str) -> str:
-        """
-        Proofreads and rewrites the given text using the LLM.
+        """Proofreads and rewrites the given text using the LLM.
 
         Args:
             text (str): The text to be proofread and rewritten.
@@ -71,6 +51,12 @@ class LLMClient:
 
 
 if __name__ == "__main__":
-    client = LLMClient()
+    load_dotenv()
+    api_key: str = os.getenv(API_KEY_ENV_VAR_NAME)
+    if api_key is None:
+        raise ValueError(f"Environment variable {API_KEY_ENV_VAR_NAME} is not set.")
+
+    client = LLMClient(api_key=api_key)
+
     text = "Big storm, San Francisco bay, very fierce, ships go up and down!"
     print(client.proofread_and_rewrite(text))
