@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import SystemMessage
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.output_parsers.base import BaseOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.prompts.base import BasePromptTemplate
@@ -18,7 +17,7 @@ API_KEY_ENV_VAR_NAME: str = "OPENAI_API_KEY"
 
 SYSTEM_MESSAGE: str = (
     "You are a professional proofreader, you are here to help me with rewriting texts. "
-    "I will provide you texts and I would like you to review and rewerite them, and fix "
+    "I will provide you texts and I would like you to review and rewrite them, and fix "
     "any style, spelling, grammar, or punctuation errors. Once you have finished reviewing, "
     "provide me with corrected text."
 )
@@ -37,7 +36,7 @@ class LLMClient:
 
     def __init__(self, api_key: str) -> None:
         """Initializes the LLMClient object."""
-        self._llm: BaseChatModel = ChatOpenAI(openai_api_key=api_key)
+        self.llm: BaseChatModel = ChatOpenAI(openai_api_key=api_key)
 
 
 if __name__ == "__main__":
@@ -57,7 +56,7 @@ if __name__ == "__main__":
     )
     add_routes(
         app,
-        prompt | client._llm,
+        prompt | client.llm,
         path="/rewrite",
     )
     uvicorn.run(app, port=18029)
