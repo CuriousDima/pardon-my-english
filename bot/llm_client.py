@@ -1,6 +1,7 @@
 import os
 
 from dotenv import load_dotenv
+from fastapi import FastAPI
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import SystemMessage
 from langchain_core.output_parsers import StrOutputParser
@@ -10,6 +11,8 @@ from langchain_core.prompts.base import BasePromptTemplate
 from langchain_core.runnables.base import RunnableSequence
 from langchain_openai import ChatOpenAI
 from langchain.prompts import HumanMessagePromptTemplate
+from langserve import add_routes
+import uvicorn
 
 API_KEY_ENV_VAR_NAME: str = "OPENAI_API_KEY"
 
@@ -36,27 +39,25 @@ class LLMClient:
         """Initializes the LLMClient object."""
         self._llm: BaseChatModel = ChatOpenAI(openai_api_key=api_key)
 
-    def proofread_and_rewrite(self, text: str) -> str:
-        """Proofreads and rewrites the given text using the LLM.
-
-        Args:
-            text (str): The text to be proofread and rewritten.
-
-        Returns:
-            str: The proofread and rewritten text.
-        """
-        output_parser: BaseOutputParser = StrOutputParser()
-        chain: RunnableSequence = prompt | self._llm | output_parser
-        return chain.invoke({"text": text})
-
 
 if __name__ == "__main__":
+    # If you want to run this script, you need to set the OPENAI_API_KEY environment variable.
+    # Create .env file in the same directory as this script and add the following line:
+    # OPENAI_API_KEY=your-api-key
     load_dotenv()
     api_key: str = os.getenv(API_KEY_ENV_VAR_NAME)
     if api_key is None:
         raise ValueError(f"Environment variable {API_KEY_ENV_VAR_NAME} is not set.")
 
     client = LLMClient(api_key=api_key)
-
-    text = "Big storm, San Francisco bay, very fierce, ships go up and down!"
-    print(client.proofread_and_rewrite(text))
+    app = FastAPI(
+        title="Proofreading and Rewriting API",
+        version="1.0",
+        description="A simple API for proofreading and rewriting texts.",
+    )
+    add_routes(
+        app,
+        prompt | client._llm,
+        path="/rewrite",
+    )
+    uvicorn.run(app, port=18029)
