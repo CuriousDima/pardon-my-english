@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 
-from cassandra.cluster import Cluster
+from cassandra.cluster import Cluster, Session
 from cassandra.auth import PlainTextAuthProvider
 
 ASTRA_CLIENT_ID_VAR_NAME: str = "ASTRA_CLIENT_ID"
@@ -14,14 +14,31 @@ ASTRA_TABLE_VAR_NAME:str = "ASTRA_TABLE"
 ASTRA_KEYSPACE_DEFAULT: str = "pardon_my_english"
 ASTRA_TABLE_DEFAULT: str = "openai_keys_by_user"
 
-def get_session(client_id, client_secret, secure_connect_bundle):
-    cloud_config = {
-        'secure_connect_bundle': secure_connect_bundle
-    }
 
-    auth_provider = PlainTextAuthProvider(client_id, client_secret)
-    cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider)
-    return cluster.connect()
+class AstraDBClient:
+    def __init__(self, client_id: str, secret: str, secure_connect_bundle_path: str) -> None:
+        self.session = self._get_session(client_id, secret, secure_connect_bundle_path)
+
+    def _get_session(self, client_id, client_secret, secure_connect_bundle) -> Session:
+        cloud_config = {
+            'secure_connect_bundle': secure_connect_bundle
+        }
+
+        auth_provider = PlainTextAuthProvider(client_id, client_secret)
+        cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider)
+        return cluster.connect()
+
+    def get_openai_key(self, user_id: int) -> str:
+        keyspace: str = os.getenv(ASTRA_KEYSPACE_VAR_NAME, ASTRA_KEYSPACE_DEFAULT)
+        table: str = os.getenv(ASTRA_TABLE_VAR_NAME, ASTRA_TABLE_DEFAULT)
+
+        row = self.session.execute(f"SELECT openai_key FROM {keyspace}.{table} WHERE user_id = {user_id}").one()
+        if row:
+            return row.openai_key
+        else:
+            raise ValueError(f"User with id {user_id} not found.")
+
+
 
 
 if __name__ == "__main__":
@@ -40,10 +57,5 @@ if __name__ == "__main__":
     keyspace: str = os.getenv(ASTRA_KEYSPACE_VAR_NAME, ASTRA_KEYSPACE_DEFAULT)
     table: str = os.getenv(ASTRA_TABLE_VAR_NAME, ASTRA_TABLE_DEFAULT)
 
-    session = get_session(client_id, secret, secure_connect_bundle_path)
-
-    row = session.execute(f"SELECT openai_key FROM {keyspace}.{table} WHERE user_id = 123").one()
-    if row:
-        print(row)
-    else:
-        print("An error occurred.")
+    astra_client = AstraDBClient(client_id, secret, secure_connect_bundle_path)
+    print(astra_client.get_openai_key(123))
