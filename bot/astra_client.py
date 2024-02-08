@@ -1,4 +1,5 @@
 import os
+from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
@@ -15,28 +16,45 @@ ASTRA_KEYSPACE_DEFAULT: str = "pardon_my_english"
 ASTRA_TABLE_DEFAULT: str = "openai_keys_by_user"
 
 
-class AstraDBClient:
-    def __init__(self, client_id: str, secret: str, secure_connect_bundle_path: str) -> None:
-        self.session = self._get_session(client_id, secret, secure_connect_bundle_path)
+@dataclass
+class AstraDbConfig:
+    client_id: str
+    secret: str
+    secure_connect_bundle_path: str
+    keyspace: str = ASTRA_KEYSPACE_DEFAULT
+    table: str = ASTRA_TABLE_DEFAULT
 
-    def _get_session(self, client_id, client_secret, secure_connect_bundle) -> Session:
+
+class AstraDBClient:
+    def __init__(self, config: AstraDbConfig) -> None:
+        self._config = config
+        self._session = self._get_session()
+
+    def _get_session(self) -> Session:
         cloud_config = {
-            'secure_connect_bundle': secure_connect_bundle
+            'secure_connect_bundle': self._config.secure_connect_bundle_path
         }
 
-        auth_provider = PlainTextAuthProvider(client_id, client_secret)
+        auth_provider = PlainTextAuthProvider(self._config.client_id, self._config.secret)
         cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider)
         return cluster.connect()
 
     def get_openai_key(self, user_id: int) -> str:
-        keyspace: str = os.getenv(ASTRA_KEYSPACE_VAR_NAME, ASTRA_KEYSPACE_DEFAULT)
-        table: str = os.getenv(ASTRA_TABLE_VAR_NAME, ASTRA_TABLE_DEFAULT)
-
-        row = self.session.execute(f"SELECT openai_key FROM {keyspace}.{table} WHERE user_id = {user_id}").one()
+        """
+        Get the OpenAI key for the given user.
+        :param user_id:
+        :return: the OpenAI key for the given user.
+        :raises ValueError: If the user with the given id is not found.
+        """
+        row = self._session.execute(f"""
+        SELECT openai_key 
+        FROM {self._config.keyspace}.{self._config.table} 
+        WHERE user_id = {user_id}
+        """).one()
         if row:
             return row.openai_key
-        else:
-            raise ValueError(f"User with id {user_id} not found.")
+
+        raise ValueError(f"User with id {user_id} not found.")
 
 
 
@@ -56,6 +74,8 @@ if __name__ == "__main__":
 
     keyspace: str = os.getenv(ASTRA_KEYSPACE_VAR_NAME, ASTRA_KEYSPACE_DEFAULT)
     table: str = os.getenv(ASTRA_TABLE_VAR_NAME, ASTRA_TABLE_DEFAULT)
+    config = AstraDbConfig(client_id, secret, secure_connect_bundle_path, keyspace, table)
 
-    astra_client = AstraDBClient(client_id, secret, secure_connect_bundle_path)
+    astra_client = AstraDBClient(config)
     print(astra_client.get_openai_key(123))
+    print(astra_client.get_openai_key(456))
