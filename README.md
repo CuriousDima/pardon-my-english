@@ -1,4 +1,5 @@
 # PardonMyEnglish
+
 The Telegram bot comes with preset prompts to help you sound like a native speaker!
 
 ## Development
@@ -13,6 +14,7 @@ CREATE TABLE openai_keys_by_user (
     openai_key text
 );
 ```
+
 1. Download the secure connect bundle from the Astra `Connect` tab.
 2. Generate `Read/Write Service Account` access credentials in the same tab.
 
@@ -32,8 +34,6 @@ ASTRA_SECURE_CONNECT_BUNDLE_PATH=<path the connect bundle downloded in step 1 of
 ASTRA_CLIENT_ID=<your astra client id from the access credentials in step 2 >
 ASTRA_SECRET=<your astra secret from the access credentials in step 2>
 ```
-
-
 
 ### Test
 
