@@ -10,6 +10,9 @@ Globals:
   Function:
     Timeout: 3
     MemorySize: 128
+    Runtime: python3.8
+    Architectures:
+      - x86_64
 
 Resources:
   HandleUpdateFunction:
@@ -17,9 +20,8 @@ Resources:
     Properties:
       CodeUri: bot/
       Handler: telegram_bot.update_handler
-      Runtime: python3.8
-      Architectures:
-        - x86_64
+      FunctionUrlConfig:
+        AuthType: NONE
       Events:
         HandleUpdate:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
@@ -31,12 +33,7 @@ Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  TelegramUpdateApi:
-    Description: "API Gateway endpoint URL for prod stage for Telegram Update Handler function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod/update/"
-  HandleUpdateFunction:
-    Description: "Telegram Update Handler Lambda Function ARN"
-    Value: !GetAtt HandleUpdateFunction.Arn
-  HandleUpdateFunctionIamRole:
-    Description: "Implicit IAM Role created for Telegram Update Handler function"
-    Value: !GetAtt HandleUpdateFunctionRole.Arn
+  TelegramUpdateEndpoint:
+    Description: "Lambda URL for HandleUpdate function"
+    Value:
+      Fn::GetAtt: HandleUpdateFunctionUrl.FunctionUrl
