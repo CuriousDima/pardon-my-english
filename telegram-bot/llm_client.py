@@ -1,5 +1,5 @@
-from enum import Enum, auto
-from typing import Callable, Union
+from enum import Enum
+from typing import Callable, Union, Tuple
 import os
 
 from langchain_core.messages import SystemMessage
@@ -33,15 +33,15 @@ _REWRITE_PROMPT: BasePromptTemplate = ChatPromptTemplate.from_messages(
 
 
 class Provider(Enum):
-    OPENAI = auto()
-    GROQ = auto()
+    GROQ = "groq"
+    OPENAI = "openai"
 
 
 class Model(Enum):
+    GEMMA = "gemma-7b-it"
     GPT3 = "gpt-3.5-turbo"
     GPT4 = "gpt-4.0-turbo"
     MIXTRAL = "mixtral-8x7b-32768"
-    GEMMA = "gemma-7b-it"
 
 
 # OpenAI can be used as a provider with the following models: GPT3, GPT4.
@@ -82,14 +82,18 @@ def get_chat(
 
 class LLMClient:
     def __init__(
-        self, provider: Provider, model: Model, temperature: float = 0.5
+        self, provider: Provider, model: Model, temperature: float = 0.35
     ) -> None:
         self.chat = get_chat(provider, model)(model, temperature)
 
-    def rewrite(self, text: str) -> str:
+    def rewrite(self, text: str) -> Tuple[str, int]:
         output_parser = StrOutputParser()
-        chain = _REWRITE_PROMPT | self.chat | output_parser
-        return chain.invoke(
+        chain = _REWRITE_PROMPT | self.chat
+        output = chain.invoke(
             {"text": text},
             config={"callbacks": [ConsoleCallbackHandler()]},
+        )
+        return (
+            output_parser.invoke(output),
+            output.response_metadata["token_usage"]["total_tokens"],
         )
