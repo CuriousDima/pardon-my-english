@@ -3,7 +3,7 @@ from sqlmodel import create_engine, SQLModel, Session, select, Field
 
 from llm_client import Model, Provider
 
-_NUM_TOKENS_DEFAULT = 100_000
+_NUM_TOKENS_DEFAULT = 1_000_000
 
 
 class Account(SQLModel, table=True):

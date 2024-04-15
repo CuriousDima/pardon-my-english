@@ -35,7 +35,6 @@ _START_MESSAGE = (
 
 
 async def start_command(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
-    logging.info(f"User {update.effective_user.id} started the bot.")
     await update.message.reply_text(_START_MESSAGE)
 
 
