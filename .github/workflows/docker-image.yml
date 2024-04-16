@@ -26,7 +26,11 @@ jobs:
               username: ${{github.actor}}
               password: ${{secrets.GITHUB_TOKEN}}
 
-          - name: 'Build Telegram Bot Image'
-            run: |
-              docker build . --platform linux/amd64,linux/arm64 --tag ghcr.io/curiousdima/pardon-my-english:latest
-              docker push ghcr.io/curiousdima/pardon-my-english:latest
+          - name: "Build and Push Telegram Bot"
+            uses: docker/build-push-action@v3
+            with:
+              context: .
+              file: ./Dockerfile
+              push: true
+              tags: ghcr.io/curiousdima/pardon-my-english:latest
+              platforms: linux/amd64, linux/arm64, linux/arm/v7
