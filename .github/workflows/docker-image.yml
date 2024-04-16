@@ -28,5 +28,5 @@ jobs:
 
           - name: 'Build Telegram Bot Image'
             run: |
-              docker build . --platform linux/amd64,linux/arm64/v8 --tag ghcr.io/curiousdima/pardon-my-english:latest
+              docker build . --platform linux/amd64,linux/arm64v8 --tag ghcr.io/curiousdima/pardon-my-english:latest
               docker push ghcr.io/curiousdima/pardon-my-english:latest
