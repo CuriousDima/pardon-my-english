@@ -42,7 +42,6 @@ async def rewrite(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     db_client: DBClient,
-    llm_client: LLMClient,
 ) -> None:
     # Handle the message
     input_message = None
@@ -64,6 +63,7 @@ async def rewrite(
         )
         return
     # Rewrite the message. Do not touch the user's token balance if they are a friend.
+    llm_client = LLMClient(provider=account.provider, model=account.model)
     rewritten_text, num_tokens = llm_client.rewrite(input_message)
     if not account.is_friend:
         db_client.decrease_token_balance(account=account, num_tokens=num_tokens)
@@ -75,7 +75,6 @@ async def rewrite(
 
 if __name__ == "__main__":
     db_client = DBClient(db_url=os.getenv(_DB_URI_VAR_NAME))
-    llm_client = LLMClient(provider=Provider.GROQ, model=Model.GEMMA)
 
     app = ApplicationBuilder().token(os.getenv(_TELEGRAM_BOT_TOKEN_VAR_NAME)).build()
 
@@ -83,7 +82,7 @@ if __name__ == "__main__":
     app.add_handler(
         MessageHandler(
             filters.TEXT & (~filters.COMMAND),
-            partial(rewrite, db_client=db_client, llm_client=llm_client),
+            partial(rewrite, db_client=db_client),
         )
     )
 
