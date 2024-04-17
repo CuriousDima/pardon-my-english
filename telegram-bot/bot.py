@@ -65,12 +65,12 @@ async def rewrite(
     # Rewrite the message. Do not touch the user's token balance if they are a friend.
     llm_client = LLMClient(provider=account.provider, model=account.model)
     rewritten_text, num_tokens = llm_client.rewrite(input_message)
-    if not account.is_friend:
-        db_client.decrease_token_balance(account=account, num_tokens=num_tokens)
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text=rewritten_text,
     )
+    if not account.is_friend:
+        db_client.decrease_token_balance(account=account, num_tokens=num_tokens)
 
 
 if __name__ == "__main__":

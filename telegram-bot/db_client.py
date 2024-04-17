@@ -1,3 +1,7 @@
+from operator import attrgetter
+
+from cachetools import cachedmethod, TTLCache
+from cachetools.keys import hashkey
 from sqlalchemy import BigInteger
 from sqlmodel import create_engine, SQLModel, Session, select, Field
 
@@ -21,11 +25,13 @@ class Account(SQLModel, table=True):
 class DBClient:
     def __init__(self, db_url: str, echo=True) -> None:
         self.engine = create_engine(db_url, echo=echo)
+        self._cache = TTLCache(maxsize=1024, ttl=60 * 60 * 4)  # 4 hours
         SQLModel.metadata.create_all(self.engine)
 
     def __del__(self) -> None:
         self.engine.dispose()
 
+    @cachedmethod(cache=attrgetter("_cache"))
     def get_or_create_account(self, user_id: str, username=None) -> Account:
         with Session(self.engine) as session:
             statement = select(Account).filter(Account.user_id == user_id)
