@@ -42,6 +42,9 @@ class Model(Enum):
     GPT3 = "gpt-3.5-turbo"
     GPT4 = "gpt-4.0-turbo"
     MIXTRAL = "mixtral-8x7b-32768"
+    LLAMA3_8B = "llama3-8b-8192"
+    LLAMA3_70B = "llama3-70b-8192"
+    
 
 
 # OpenAI can be used as a provider with the following models: GPT3, GPT4.
@@ -50,7 +53,7 @@ def is_valid_provider_model_combination(provider: Provider, model: Model) -> boo
     if provider == Provider.OPENAI:
         return model in [Model.GPT3, Model.GPT4]
     elif provider == Provider.GROQ:
-        return model in [Model.MIXTRAL, Model.GEMMA]
+        return model in [Model.MIXTRAL, Model.GEMMA, Model.LLAMA3_8B, Model.LLAMA3_70B]
 
 
 def _create_openai_chat(
