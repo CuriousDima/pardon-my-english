@@ -1,3 +1,5 @@
+import sys
+import os
 from operator import attrgetter
 
 from cachetools import cachedmethod, TTLCache
@@ -5,7 +7,8 @@ from cachetools.keys import hashkey
 from sqlalchemy import BigInteger
 from sqlmodel import create_engine, SQLModel, Session, select, Field
 
-from llm_client import Model, Provider
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from common.llm_client import LLMClient, Model, Provider
 
 _NUM_TOKENS_DEFAULT = 1_000_000
 

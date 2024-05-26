@@ -12,8 +12,8 @@ from langchain.prompts import HumanMessagePromptTemplate
 from langchain.schema import StrOutputParser
 
 
-_GROQ_API_KEY_VAR_NAME = "GROQ_API_KEY"
-_OPENAI_API_KEY = "OPENAI_API_KEY"
+GROQ_API_KEY_VAR_NAME = "GROQ_API_KEY"
+OPENAI_API_KEY = "OPENAI_API_KEY"
 
 _SYSTEM_MESSAGE = (
     "You are a professional editor. Your task is to rewrite texts.\n"
@@ -42,6 +42,8 @@ class Model(Enum):
     GPT3 = "gpt-3.5-turbo"
     GPT4 = "gpt-4.0-turbo"
     MIXTRAL = "mixtral-8x7b-32768"
+    LLAMA3_8B = "llama3-8b-8192"
+    LLAMA3_70B = "llama3-70b-8192"
 
 
 # OpenAI can be used as a provider with the following models: GPT3, GPT4.
@@ -50,20 +52,20 @@ def is_valid_provider_model_combination(provider: Provider, model: Model) -> boo
     if provider == Provider.OPENAI:
         return model in [Model.GPT3, Model.GPT4]
     elif provider == Provider.GROQ:
-        return model in [Model.MIXTRAL, Model.GEMMA]
+        return model in [Model.MIXTRAL, Model.GEMMA, Model.LLAMA3_8B, Model.LLAMA3_70B]
 
 
 def _create_openai_chat(
     model: Model, temperature: float
 ) -> Callable[[Model, str, float], ChatOpenAI]:
-    api_key = os.getenv(_OPENAI_API_KEY)
+    api_key = os.getenv(OPENAI_API_KEY)
     return ChatOpenAI(model=model.value, api_key=api_key, temperature=temperature)
 
 
 def _create_groq_chat(
     model: Model, temperature: float
 ) -> Callable[[Model, str, float], ChatGroq]:
-    api_key = os.getenv(_GROQ_API_KEY_VAR_NAME)
+    api_key = os.getenv(GROQ_API_KEY_VAR_NAME)
     return ChatGroq(
         model_name=model.value, groq_api_key=api_key, temperature=temperature
     )

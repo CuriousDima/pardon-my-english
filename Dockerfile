@@ -5,7 +5,8 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Copy the directory containing the application into the container at /app
-COPY telegram-bot/ /app/
+COPY telegram-bot/ /app/telegram-bot/
+COPY common/ /app/common/
 COPY requirements.txt /app/
 
 # Install any needed packages specified in requirements.txt
@@ -28,4 +29,4 @@ VOLUME /app/data
 RUN mkdir /app/data
 
 # Run bot.py when the container launches
-CMD ["python", "bot.py"]
+CMD ["python", "telegram-bot/bot.py"]

@@ -13,8 +13,9 @@ from telegram.ext import (
     MessageHandler,
 )
 
-from llm_client import LLMClient, Model, Provider
-from db_client import DBClient, Account
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from common.llm_client import LLMClient
+from db_client import DBClient
 
 
 logging.basicConfig(
