@@ -7,6 +7,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.prompts.base import BasePromptTemplate
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
+from langchain_community.chat_models.perplexity import ChatPerplexity
 from langchain.callbacks.tracers import ConsoleCallbackHandler
 from langchain.prompts import HumanMessagePromptTemplate
 from langchain.schema import StrOutputParser
@@ -14,6 +15,7 @@ from langchain.schema import StrOutputParser
 
 GROQ_API_KEY_VAR_NAME = "GROQ_API_KEY"
 OPENAI_API_KEY = "OPENAI_API_KEY"
+PERPLEXITY_API_KEY = "PPLX_API_KEY"
 
 _SYSTEM_MESSAGE = (
     "You are a professional editor. Your task is to rewrite texts.\n"
@@ -35,6 +37,7 @@ _REWRITE_PROMPT: BasePromptTemplate = ChatPromptTemplate.from_messages(
 class Provider(Enum):
     GROQ = "groq"
     OPENAI = "openai"
+    PERPLEXITY = "perplexity"
 
 
 class Model(Enum):
@@ -44,6 +47,7 @@ class Model(Enum):
     MIXTRAL = "mixtral-8x7b-32768"
     LLAMA3_8B = "llama3-8b-8192"
     LLAMA3_70B = "llama3-70b-8192"
+    LLAMA3_70B_INSTRUCT = "llama-3-70b-instruct"
 
 
 # OpenAI can be used as a provider with the following models: GPT3, GPT4.
@@ -53,6 +57,8 @@ def is_valid_provider_model_combination(provider: Provider, model: Model) -> boo
         return model in [Model.GPT3, Model.GPT4]
     elif provider == Provider.GROQ:
         return model in [Model.MIXTRAL, Model.GEMMA, Model.LLAMA3_8B, Model.LLAMA3_70B]
+    elif provider == Provider.PERPLEXITY:
+        return model == Model.LLAMA3_70B_INSTRUCT
 
 
 def _create_openai_chat(
@@ -71,6 +77,15 @@ def _create_groq_chat(
     )
 
 
+def create_perplexity_chat(
+    model: Model, temperature: float
+) -> Callable[[Model, str, float], ChatPerplexity]:
+    api_key = os.getenv(PERPLEXITY_API_KEY)
+    return ChatPerplexity(
+        model=model.value, temperature=temperature, pplx_api_key=api_key
+    )
+
+
 def get_chat(
     provider: Provider, model: Model
 ) -> Callable[[Model, str, float], Union[ChatOpenAI, ChatGroq]]:
@@ -80,6 +95,8 @@ def get_chat(
         return _create_openai_chat
     elif provider == Provider.GROQ:
         return _create_groq_chat
+    elif provider == Provider.PERPLEXITY:
+        return create_perplexity_chat
 
 
 class LLMClient:
@@ -97,5 +114,12 @@ class LLMClient:
         )
         return (
             output_parser.invoke(output),
-            output.response_metadata["token_usage"]["total_tokens"],
+            # The response metadata suppose to contain the token usage information.
+            # However, it is not always the case. Consider token usage as 0 if
+            # it is not available.
+            (
+                0
+                if "token_usage" not in output.response_metadata
+                else output.response_metadata["token_usage"]["total_tokens"]
+            ),
         )
