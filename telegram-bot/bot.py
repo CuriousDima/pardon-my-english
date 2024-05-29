@@ -39,6 +39,20 @@ async def start_command(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(_START_MESSAGE)
 
 
+async def get_model_command(
+    update: Update,
+    _: ContextTypes.DEFAULT_TYPE,
+    db_client: DBClient,
+) -> None:
+    """Get the current model being used by the user."""
+    user_id = update.message.from_user.id
+    username = update.message.from_user.username
+    account = db_client.get_or_create_account(user_id=user_id, username=username)
+    await update.message.reply_text(
+        f"You are currently using {account.model.value} provided by {account.provider.value}."
+    )
+
+
 async def rewrite(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -80,6 +94,9 @@ if __name__ == "__main__":
     app = ApplicationBuilder().token(os.getenv(_TELEGRAM_BOT_TOKEN_VAR_NAME)).build()
 
     app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(
+        CommandHandler("model", partial(get_model_command, db_client=db_client))
+    )
     app.add_handler(
         MessageHandler(
             filters.TEXT & (~filters.COMMAND),
