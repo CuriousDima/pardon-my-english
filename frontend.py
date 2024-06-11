@@ -53,10 +53,10 @@ if rewrite_button:
         st.error("Please wait 5 seconds before rewriting another text.")
         st.stop()
     else:
-        st.write("<i>Rewriting...</i>", unsafe_allow_html=True)
-        rewritten_text, total_tokens_used = llm_client.rewrite(input_text)
-        st.markdown("---")
-        st.markdown(f"{rewritten_text}")
-        st.session_state["time"] = time.time()
-        st.markdown("---")
-        print_nerdy_details(total_tokens_used)
+        with st.spinner("Rewriting..."):
+            rewritten_text, total_tokens_used = llm_client.rewrite(input_text)
+            st.markdown("---")
+            st.markdown(f"{rewritten_text}")
+            st.session_state["time"] = time.time()
+            st.markdown("---")
+            print_nerdy_details(total_tokens_used)
