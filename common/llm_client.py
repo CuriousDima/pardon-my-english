@@ -47,7 +47,7 @@ class Model(Enum):
     MIXTRAL = "mixtral-8x7b-32768"
     LLAMA3_8B = "llama3-8b-8192"
     LLAMA3_70B = "llama3-70b-8192"
-    LLAMA3_70B_INSTRUCT = "llama-3-70b-instruct"
+    LLAMA3_70B_INSTRUCT = "llama-3.1-70b-instruct"
 
 
 # OpenAI can be used as a provider with the following models: GPT3, GPT4.
