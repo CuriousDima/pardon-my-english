@@ -9,6 +9,7 @@ Pardon My English is designed to assist non-native English speakers by transform
 
 # Changelog
 
+- \[2024-09-15\] Llama 3.1 via Perplexity API is now a default mode for everyone!
 - \[2024-08-05\] We've updated Llama version to Llama 3.1 via Perplexity API.
 - \[2024-05-28\] We've added support for the Perplexity API, which now integrates with Llama3-70b-instruct. When selected, it adheres more closely to the initial instructions.
 - \[2024-05-25\] We've added an alternative frontend. Instead of using Telegram, you can now run the app locally by using `streamlit run frontend.py` command, and interact with Pardon My English in the same way as before.
