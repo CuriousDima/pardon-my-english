@@ -17,8 +17,8 @@ class Account(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: str = Field(index=True, sa_type=BigInteger)  # Telegram user ID
     username: str | None
-    provider: Provider = Field(default=Provider.GROQ)
-    model: Model = Field(default=Model.LLAMA3_70B)
+    provider: Provider = Field(default=Provider.PERPLEXITY)
+    model: Model = Field(default=Model.LLAMA3_70B_INSTRUCT)
     tokens_balance: int = Field(default=_NUM_TOKENS_DEFAULT)
     # Whether the user is a friend of the bot owner.
     # This is used to give the user an unlimited token balance.
