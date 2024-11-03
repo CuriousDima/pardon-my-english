@@ -55,9 +55,9 @@ class Model(Enum):
 # GROQ can be used as a provider with the following models: MIXTRAL, GEMMA.
 def is_valid_provider_model_combination(provider: Provider, model: Model) -> bool:
     if provider == Provider.OPENAI:
-        return model in [Model.GPT3, Model.GPT4]
+        return model in (Model.GPT3, Model.GPT4, Model.GPT4O)
     elif provider == Provider.GROQ:
-        return model in [Model.MIXTRAL, Model.GEMMA, Model.LLAMA3_8B, Model.LLAMA3_70B]
+        return model in (Model.MIXTRAL, Model.GEMMA, Model.LLAMA3_8B, Model.LLAMA3_70B)
     elif provider == Provider.PERPLEXITY:
         return model == Model.LLAMA3_70B_INSTRUCT
 
