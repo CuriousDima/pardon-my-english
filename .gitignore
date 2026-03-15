@@ -194,3 +194,6 @@ Temporary Items
 
 # steamlit stuff
 secrets.toml
+
+# uv/ruff
+.ruff_cache/

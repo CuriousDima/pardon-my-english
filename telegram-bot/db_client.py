@@ -3,22 +3,33 @@ import os
 from operator import attrgetter
 
 from cachetools import cachedmethod, TTLCache
-from cachetools.keys import hashkey
 from sqlalchemy import BigInteger
 from sqlmodel import create_engine, SQLModel, Session, select, Field
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from common.llm_client import LLMClient, Model, Provider
+from common.llm_client import Model, Provider
 
 _NUM_TOKENS_DEFAULT = 1_000_000
 
 
+def _normalize_db_url(db_url: str) -> str:
+    db_url = db_url.strip()
+    if not db_url:
+        raise ValueError("DB_URI is empty.")
+    if "://" in db_url:
+        return db_url
+    if db_url == ":memory:":
+        return "sqlite:///:memory:"
+    db_path = os.path.abspath(os.path.expanduser(db_url))
+    return f"sqlite:///{db_path}"
+
+
 class Account(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    user_id: str = Field(index=True, sa_type=BigInteger)  # Telegram user ID
+    user_id: int = Field(index=True, sa_type=BigInteger)  # Telegram user ID
     username: str | None
     provider: Provider = Field(default=Provider.OPENAI)
-    model: Model = Field(default=Model.GPT4O)
+    model: Model = Field(default=Model.GPT54)
     tokens_balance: int = Field(default=_NUM_TOKENS_DEFAULT)
     # Whether the user is a friend of the bot owner.
     # This is used to give the user an unlimited token balance.
@@ -27,17 +38,20 @@ class Account(SQLModel, table=True):
 
 class DBClient:
     def __init__(self, db_url: str, echo=True) -> None:
-        self.engine = create_engine(db_url, echo=echo)
+        self.engine = create_engine(_normalize_db_url(db_url), echo=echo)
         self._cache = TTLCache(maxsize=1024, ttl=60 * 60 * 4)  # 4 hours
         SQLModel.metadata.create_all(self.engine)
 
     def __del__(self) -> None:
-        self.engine.dispose()
+        if hasattr(self, "engine"):
+            self.engine.dispose()
 
     @cachedmethod(cache=attrgetter("_cache"))
-    def get_or_create_account(self, user_id: str, username=None) -> Account:
+    def get_or_create_account(
+        self, user_id: int, username: str | None = None
+    ) -> Account:
         with Session(self.engine) as session:
-            statement = select(Account).filter(Account.user_id == user_id)
+            statement = select(Account).filter(Account.user_id == user_id)  # ty: ignore[invalid-argument-type]
             account = session.exec(statement).one_or_none()
             if account is None:
                 account = Account(user_id=user_id, username=username)

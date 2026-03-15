@@ -1,0 +1,26 @@
+[project]
+name = "pardon-my-english"
+version = "0.2.0"
+description = "Telegram bot for rewriting text into polished English."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "cachetools",
+    "litellm",
+    "python-dotenv",
+    "python-telegram-bot",
+    "sqlalchemy",
+    "sqlmodel",
+]
+
+[tool.uv]
+package = false
+
+[tool.ty.environment]
+root = [".", "./telegram-bot"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.6",
+    "ty>=0.0.23",
+]

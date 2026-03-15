@@ -1,32 +1,21 @@
-# Use an official Python runtime as a parent image
-FROM python:3.12-slim
+FROM python:3.11-slim
 
-# Set the working directory to /app
+COPY --from=ghcr.io/astral-sh/uv:0.6.6 /uv /usr/local/bin/uv
+
 WORKDIR /app
 
-# Copy the directory containing the application into the container at /app
+COPY pyproject.toml uv.lock /app/
+RUN uv sync --frozen --no-dev
+
 COPY telegram-bot/ /app/telegram-bot/
 COPY common/ /app/common/
-COPY requirements.txt /app/
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Make port 80 available to the world outside this container
-# (Not needed since this application does not use a network port, but left for reference)
-# EXPOSE 80
-
-# Define environment variables
 ENV DB_URI="sqlite:////app/data/pardon-my-english-accounts.db"
+ENV PATH="/app/.venv/bin:${PATH}"
 ENV TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
 ENV OPENAI_API_KEY=${OPENAI_API_KEY}
-ENV GROQ_API_KEY=${GROQ_API_KEY}
 
-# Set up a directory for the SQLite database
 VOLUME /app/data
-
-# Make sure the directory for SQLite database exists
 RUN mkdir /app/data
 
-# Run bot.py when the container launches
-CMD ["python", "telegram-bot/bot.py"]
+CMD ["uv", "run", "python", "telegram-bot/bot.py"]

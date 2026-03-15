@@ -1,0 +1,8 @@
+{
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true
+    },
+    "ty.diagnosticMode": "workspace",
+    "ty.importStrategy": "fromEnvironment"
+}

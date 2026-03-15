@@ -35,8 +35,19 @@ _START_MESSAGE = (
 )
 
 
+def _get_message(update: Update):
+    message = update.message or update.edited_message
+    assert message is not None, "No message found on the update."
+    return message
+
+
+def _get_user_info(update: Update) -> tuple[int, str | None]:
+    message = _get_message(update)
+    return message.from_user.id, message.from_user.username
+
+
 async def start_command(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(_START_MESSAGE)
+    await _get_message(update).reply_text(_START_MESSAGE)
 
 
 async def get_model_command(
@@ -45,10 +56,10 @@ async def get_model_command(
     db_client: DBClient,
 ) -> None:
     """Get the current model being used by the user."""
-    user_id = update.message.from_user.id
-    username = update.message.from_user.username
+    message = _get_message(update)
+    user_id, username = _get_user_info(update)
     account = db_client.get_or_create_account(user_id=user_id, username=username)
-    await update.message.reply_text(
+    await message.reply_text(
         f"You are currently using {account.model.value} provided by {account.provider.value}."
     )
 
@@ -59,21 +70,17 @@ async def rewrite(
     db_client: DBClient,
 ) -> None:
     # Handle the message
-    input_message = None
-    if update.message is not None:
-        input_message = update.message.text
-    elif update.edited_message is not None:
-        input_message = update.edited_message.text
+    message = _get_message(update)
+    input_message = message.text
     assert input_message is not None, "No message to rewrite."
     # Handle the user
-    user_id = update.message.from_user.id
-    username = update.message.from_user.username
+    user_id, username = _get_user_info(update)
     account = db_client.get_or_create_account(user_id=user_id, username=username)
     # Check if the user has run out of tokens.
     # If the user is a friend, they have an unlimited token balance. ;)
     if not account.is_friend and account.tokens_balance <= 0:
         await context.bot.send_message(
-            chat_id=update.effective_chat.id,
+            chat_id=message.chat_id,
             text="You have run out of tokens. 🥲\n Please contact the bot owner to get more.",
         )
         return
@@ -81,7 +88,7 @@ async def rewrite(
     llm_client = LLMClient(provider=account.provider, model=account.model)
     rewritten_text, num_tokens = llm_client.rewrite(input_message)
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+        chat_id=message.chat_id,
         text=rewritten_text,
     )
     if not account.is_friend:
@@ -89,9 +96,13 @@ async def rewrite(
 
 
 if __name__ == "__main__":
-    db_client = DBClient(db_url=os.getenv(_DB_URI_VAR_NAME))
+    db_url = os.getenv(_DB_URI_VAR_NAME)
+    assert db_url is not None, f"{_DB_URI_VAR_NAME} is not set."
+    db_client = DBClient(db_url=db_url)
 
-    app = ApplicationBuilder().token(os.getenv(_TELEGRAM_BOT_TOKEN_VAR_NAME)).build()
+    telegram_bot_token = os.getenv(_TELEGRAM_BOT_TOKEN_VAR_NAME)
+    assert telegram_bot_token is not None, f"{_TELEGRAM_BOT_TOKEN_VAR_NAME} is not set."
+    app = ApplicationBuilder().token(telegram_bot_token).build()
 
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(
