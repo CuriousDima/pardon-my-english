@@ -5,7 +5,7 @@ import pytest
 from openai import AsyncOpenAI
 
 from pardon_my_english import llm
-from pardon_my_english.llm import LLMClient, Model, Provider
+from pardon_my_english.llm import LLMClient, Model
 
 
 def _make_client(content: str | None, requests: list[dict]) -> LLMClient:
@@ -38,7 +38,7 @@ def _make_client(content: str | None, requests: list[dict]) -> LLMClient:
         api_key="test",
         http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler)),
     )
-    return LLMClient(clients={Provider.OPENROUTER: openai_client})
+    return LLMClient(client=openai_client)
 
 
 @pytest.mark.anyio
@@ -46,9 +46,7 @@ async def test_rewrite_sends_delimited_text_and_returns_tokens() -> None:
     requests: list[dict] = []
     client = _make_client("  He and I went to the store.  ", requests)
 
-    text, tokens = await client.rewrite(
-        "me and him goes to store", Provider.OPENROUTER, Model.GPT6_LUNA
-    )
+    text, tokens = await client.rewrite("me and him goes to store", Model.GPT6_LUNA)
 
     assert (text, tokens) == ("He and I went to the store.", 15)
     [request] = requests
@@ -63,7 +61,7 @@ async def test_rewrite_sends_delimited_text_and_returns_tokens() -> None:
 @pytest.mark.anyio
 async def test_rewrite_strips_echoed_tags() -> None:
     client = _make_client("<text>\nHello there!\n</text>", [])
-    text, _ = await client.rewrite("hello their", Provider.OPENROUTER, Model.GPT6_LUNA)
+    text, _ = await client.rewrite("hello their", Model.GPT6_LUNA)
     assert text == "Hello there!"
 
 
@@ -72,14 +70,7 @@ async def test_rewrite_strips_echoed_tags() -> None:
 async def test_rewrite_rejects_empty_response(content: str | None) -> None:
     client = _make_client(content, [])
     with pytest.raises(ValueError, match="Empty response"):
-        await client.rewrite("hi", Provider.OPENROUTER, Model.GPT6_LUNA)
-
-
-@pytest.mark.anyio
-async def test_rewrite_rejects_invalid_combination() -> None:
-    client = _make_client("unused", [])
-    with pytest.raises(ValueError, match="Invalid provider-model combination"):
-        await client.rewrite("hi", Provider.OPENROUTER, Model.QWEN25_CODER_1_5B)
+        await client.rewrite("hi", Model.GPT6_LUNA)
 
 
 def test_openrouter_api_key_falls_back_to_openrouter_key(

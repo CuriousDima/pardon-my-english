@@ -2,11 +2,11 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import inspect, update
 from sqlmodel import col
 
 from pardon_my_english.db import Account, DBClient, normalize_db_url
-from pardon_my_english.llm import Model, Provider
+from pardon_my_english.llm import Model
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def test_get_or_create_account(db_path: Path) -> None:
     db = DBClient(str(db_path))
 
     account = db.get_or_create_account(user_id=42, username="old")
-    assert (account.provider, account.model) == (Provider.OPENROUTER, Model.GPT6_LUNA)
+    assert account.model == Model.GPT6_LUNA
     assert account.tokens_balance == 1_000_000
     assert not account.is_friend
 
@@ -71,12 +71,14 @@ def test_accounts_on_removed_models_are_migrated(db_path: Path) -> None:
     connection.close()
 
     db = DBClient(str(db_path))
+    # Running the migration again is a no-op.
+    db = DBClient(str(db_path))
 
-    expected = {
-        1: (Provider.OPENROUTER, Model.GPT6_LUNA, 500),
-        2: (Provider.OPENROUTER, Model.GPT6_LUNA, 10),
-        3: (Provider.OLLAMA, Model.QWEN25_CODER_1_5B, 10),
-    }
-    for user_id, values in expected.items():
+    columns = {column["name"] for column in inspect(db.engine).get_columns("account")}
+    assert "provider" not in columns
+    expected_balances = {1: 500, 2: 10, 3: 10}
+    for user_id, balance in expected_balances.items():
         account = db.get_or_create_account(user_id=user_id)
-        assert (account.provider, account.model, account.tokens_balance) == values
+        assert (account.model, account.tokens_balance) == (Model.GPT6_LUNA, balance)
+    # New accounts can still be created after the provider column is gone.
+    assert db.get_or_create_account(user_id=4).model == Model.GPT6_LUNA
