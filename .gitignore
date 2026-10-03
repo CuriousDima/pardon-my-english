@@ -197,3 +197,5 @@ secrets.toml
 
 # uv/ruff
 .ruff_cache/
+# Local account databases
+*.db
