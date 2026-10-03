@@ -8,6 +8,7 @@ Pardon My English is designed to assist non-native English speakers by transform
 
 # Changelog
 
+- \[2026-10-03\] Switched from direct OpenAI to [OpenRouter](https://openrouter.ai/) (still `openai/gpt-5.4`) and replaced LiteLLM with the official `openai` SDK. Existing OpenAI users are migrated automatically on startup.
 - \[2026-03-15\] Migrated the project to `uv` and Python 3.11, replaced LangChain with LiteLLM, reset all existing users to OpenAI `gpt-5.4`, and added Ollama support for `qwen2.5-coder:1.5b`.
 - \[2024-11-05\] GPT-4o is now the default and included in the config. All current users have been migrated to 4o too.
 - \[2024-09-15\] Llama 3.1 via Perplexity API is now a default mode for everyone!
@@ -25,12 +26,12 @@ Set `DB_URI` to either a full SQLAlchemy URL or a SQLite file path such as `./pa
 
 The bot supports these backends:
 
-- OpenAI: `gpt-5.4`
-- Ollama
+- OpenRouter: `openai/gpt-5.4`
+- Ollama: `qwen2.5-coder:1.5b`, via its OpenAI-compatible API (set `OLLAMA_API_BASE`)
 
-`gpt-5.4` is the default for all new accounts.
+`openai/gpt-5.4` via OpenRouter is the default for all new accounts.
 
-For OpenAI, set `OPENAI_API_KEY`.
+For OpenRouter, set `OPENROUTER_API_KEY` (`OPENROUTER_KEY` is accepted too).
 
 To run the Telegram bot locally:
 

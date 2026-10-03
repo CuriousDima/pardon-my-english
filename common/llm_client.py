@@ -1,13 +1,18 @@
-from enum import Enum
 import os
-from typing import Any, Tuple
+from enum import Enum
 
-from litellm import completion
+from openai import AsyncOpenAI
 
-
-OPENAI_API_KEY = "OPENAI_API_KEY"
+OPENROUTER_API_KEY_VAR_NAMES = ("OPENROUTER_API_KEY", "OPENROUTER_KEY")
+OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
 OLLAMA_API_BASE_VAR_NAME = "OLLAMA_API_BASE"
 DEFAULT_OLLAMA_API_BASE = "http://192.168.86.46:8000"
+
+# Optional OpenRouter attribution headers: https://openrouter.ai/docs/api-reference/overview#headers
+_OPENROUTER_HEADERS = {
+    "HTTP-Referer": "https://t.me/PardonMyEnglishBot",
+    "X-Title": "Pardon My English",
+}
 
 _SYSTEM_MESSAGE = (
     "You are a professional editor. Your task is to rewrite texts.\n"
@@ -20,78 +25,79 @@ _SYSTEM_MESSAGE = (
 
 
 class Provider(Enum):
-    OPENAI = "openai"
+    OPENROUTER = "openrouter"
     OLLAMA = "ollama"
 
 
 class Model(Enum):
-    GPT54 = "gpt-5.4"
+    GPT54 = "openai/gpt-5.4"
     QWEN25_CODER_1_5B = "qwen2.5-coder:1.5b"
 
 
+VALID_PROVIDER_MODEL_COMBINATIONS = frozenset(
+    {
+        (Provider.OPENROUTER, Model.GPT54),
+        (Provider.OLLAMA, Model.QWEN25_CODER_1_5B),
+    }
+)
+
+
 def is_valid_provider_model_combination(provider: Provider, model: Model) -> bool:
-    return (provider == Provider.OPENAI and model == Model.GPT54) or (
-        provider == Provider.OLLAMA and model == Model.QWEN25_CODER_1_5B
-    )
+    return (provider, model) in VALID_PROVIDER_MODEL_COMBINATIONS
 
 
-def _get_total_tokens(response: Any) -> int:
-    usage = getattr(response, "usage", None)
-    if usage is None:
-        return 0
-    if isinstance(usage, dict):
-        return int(usage.get("total_tokens", 0) or 0)
-    return int(getattr(usage, "total_tokens", 0) or 0)
+def _get_openrouter_api_key() -> str:
+    for var_name in OPENROUTER_API_KEY_VAR_NAMES:
+        if api_key := os.getenv(var_name):
+            return api_key
+    raise ValueError(f"None of {', '.join(OPENROUTER_API_KEY_VAR_NAMES)} is set.")
 
 
-def _get_text_content(content: Any) -> str:
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts: list[str] = []
-        for item in content:
-            if isinstance(item, dict) and item.get("type") == "text":
-                parts.append(item.get("text", ""))
-            elif hasattr(item, "text"):
-                parts.append(getattr(item, "text"))
-        return "".join(parts)
-    raise ValueError(f"Unsupported LiteLLM response content: {type(content)!r}")
+def _create_client(provider: Provider) -> AsyncOpenAI:
+    if provider == Provider.OPENROUTER:
+        return AsyncOpenAI(
+            base_url=OPENROUTER_API_BASE,
+            api_key=_get_openrouter_api_key(),
+            default_headers=_OPENROUTER_HEADERS,
+        )
+    if provider == Provider.OLLAMA:
+        # Ollama exposes an OpenAI-compatible API under /v1 and ignores the API key.
+        api_base = os.getenv(OLLAMA_API_BASE_VAR_NAME, DEFAULT_OLLAMA_API_BASE)
+        return AsyncOpenAI(base_url=f"{api_base.rstrip('/')}/v1", api_key="ollama")
+    raise ValueError(f"Unsupported provider: {provider}")
 
 
 class LLMClient:
-    def __init__(
-        self, provider: Provider, model: Model, temperature: float = 0.35
-    ) -> None:
+    """Rewrites text using one of the supported OpenAI-compatible backends.
+
+    Clients are created lazily and reused across calls, one per provider.
+    """
+
+    def __init__(self, temperature: float = 0.35) -> None:
+        self.temperature = temperature
+        self._clients: dict[Provider, AsyncOpenAI] = {}
+
+    def _get_client(self, provider: Provider) -> AsyncOpenAI:
+        if provider not in self._clients:
+            self._clients[provider] = _create_client(provider)
+        return self._clients[provider]
+
+    async def rewrite(
+        self, text: str, provider: Provider, model: Model
+    ) -> tuple[str, int]:
+        """Return the rewritten text and the number of tokens spent."""
         if not is_valid_provider_model_combination(provider, model):
             raise ValueError(f"Invalid provider-model combination: {provider}-{model}")
-        self.provider = provider
-        self.model = model
-        self.temperature = temperature
-
-    def _provider_kwargs(self) -> dict[str, Any]:
-        if self.provider == Provider.OPENAI:
-            api_key = os.getenv(OPENAI_API_KEY)
-            if not api_key:
-                raise ValueError("OPENAI_API_KEY is not set.")
-            return {"api_key": api_key}
-        if self.provider == Provider.OLLAMA:
-            return {
-                "api_base": os.getenv(
-                    OLLAMA_API_BASE_VAR_NAME,
-                    DEFAULT_OLLAMA_API_BASE,
-                ).rstrip("/")
-            }
-        raise ValueError(f"Unsupported provider: {self.provider}")
-
-    def rewrite(self, text: str) -> Tuple[str, int]:
-        response = completion(
-            model=f"{self.provider.value}/{self.model.value}",
+        response = await self._get_client(provider).chat.completions.create(
+            model=model.value,
             messages=[
                 {"role": "system", "content": _SYSTEM_MESSAGE},
                 {"role": "user", "content": text},
             ],
             temperature=self.temperature,
-            **self._provider_kwargs(),
         )
         content = response.choices[0].message.content
-        return _get_text_content(content), _get_total_tokens(response)
+        if not content:
+            raise ValueError(f"Empty response from {provider.value}/{model.value}.")
+        total_tokens = response.usage.total_tokens if response.usage else 0
+        return content.strip(), total_tokens

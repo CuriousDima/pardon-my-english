@@ -1,28 +1,32 @@
-from functools import partial
 import logging
 import os
 import sys
+from functools import partial
 
 from dotenv import load_dotenv
 from telegram import Update
+from telegram.constants import ChatAction
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     ContextTypes,
-    filters,
     MessageHandler,
+    filters,
 )
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from common.llm_client import LLMClient
 from db_client import DBClient
 
+from common.llm_client import LLMClient
 
 logging.basicConfig(
     level=logging.INFO,
     stream=sys.stdout,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
+# httpx logs every Telegram long-polling request at INFO level.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Environment variables names
@@ -68,6 +72,7 @@ async def rewrite(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     db_client: DBClient,
+    llm_client: LLMClient,
 ) -> None:
     # Handle the message
     message = _get_message(update)
@@ -85,8 +90,12 @@ async def rewrite(
         )
         return
     # Rewrite the message. Do not touch the user's token balance if they are a friend.
-    llm_client = LLMClient(provider=account.provider, model=account.model)
-    rewritten_text, num_tokens = llm_client.rewrite(input_message)
+    await context.bot.send_chat_action(
+        chat_id=message.chat_id, action=ChatAction.TYPING
+    )
+    rewritten_text, num_tokens = await llm_client.rewrite(
+        input_message, provider=account.provider, model=account.model
+    )
     await context.bot.send_message(
         chat_id=message.chat_id,
         text=rewritten_text,
@@ -95,10 +104,19 @@ async def rewrite(
         db_client.decrease_token_balance(account=account, num_tokens=num_tokens)
 
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logger.error("Failed to handle an update.", exc_info=context.error)
+    if isinstance(update, Update) and update.effective_message is not None:
+        await update.effective_message.reply_text(
+            "Sorry, something went wrong. 😔 Please try again in a moment."
+        )
+
+
 if __name__ == "__main__":
     db_url = os.getenv(_DB_URI_VAR_NAME)
     assert db_url is not None, f"{_DB_URI_VAR_NAME} is not set."
     db_client = DBClient(db_url=db_url)
+    llm_client = LLMClient()
 
     telegram_bot_token = os.getenv(_TELEGRAM_BOT_TOKEN_VAR_NAME)
     assert telegram_bot_token is not None, f"{_TELEGRAM_BOT_TOKEN_VAR_NAME} is not set."
@@ -111,8 +129,9 @@ if __name__ == "__main__":
     app.add_handler(
         MessageHandler(
             filters.TEXT & (~filters.COMMAND),
-            partial(rewrite, db_client=db_client),
+            partial(rewrite, db_client=db_client, llm_client=llm_client),
         )
     )
+    app.add_error_handler(error_handler)
 
     app.run_polling()
