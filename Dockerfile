@@ -1,21 +1,25 @@
-FROM python:3.11-slim
+FROM python:3.14-slim
 
-COPY --from=ghcr.io/astral-sh/uv:0.6.6 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+# Install dependencies first so they're cached independently of code changes.
 COPY pyproject.toml uv.lock /app/
+RUN uv sync --frozen --no-dev --no-install-project
+
+COPY README.md /app/
+COPY src/ /app/src/
 RUN uv sync --frozen --no-dev
 
-COPY telegram-bot/ /app/telegram-bot/
-COPY common/ /app/common/
-
+# TELEGRAM_BOT_TOKEN and OPENROUTER_API_KEY must be provided at runtime, e.g. `docker run -e ...`.
 ENV DB_URI="sqlite:////app/data/pardon-my-english-accounts.db"
 ENV PATH="/app/.venv/bin:${PATH}"
-ENV TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-ENV OPENAI_API_KEY=${OPENAI_API_KEY}
 
+RUN mkdir -p /app/data
 VOLUME /app/data
-RUN mkdir /app/data
 
-CMD ["uv", "run", "python", "telegram-bot/bot.py"]
+CMD ["pardon-my-english"]
