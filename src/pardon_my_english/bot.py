@@ -78,7 +78,7 @@ async def get_model_command(
     user_id, username = _get_user_info(update)
     account = db_client.get_or_create_account(user_id=user_id, username=username)
     await message.reply_text(
-        f"You are currently using {account.model.value} provided by {account.provider.value}."
+        f"You are currently using {account.model.value} via OpenRouter."
     )
 
 
@@ -108,7 +108,7 @@ async def rewrite(
         chat_id=message.chat_id, action=ChatAction.TYPING
     )
     rewritten_text, num_tokens = await llm_client.rewrite(
-        input_message, provider=account.provider, model=account.model
+        input_message, model=account.model
     )
     for chunk in split_message(rewritten_text):
         await context.bot.send_message(chat_id=message.chat_id, text=chunk)

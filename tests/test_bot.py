@@ -8,7 +8,7 @@ from telegram.error import BadRequest, NetworkError
 
 from pardon_my_english.bot import error_handler, rewrite, split_message
 from pardon_my_english.db import DBClient
-from pardon_my_english.llm import Model, Provider
+from pardon_my_english.llm import Model
 
 
 def test_split_message_keeps_short_text_intact() -> None:
@@ -33,12 +33,10 @@ class FakeLLMClient:
 
     def __init__(self, text: str, tokens: int) -> None:
         self.result = (text, tokens)
-        self.calls: list[tuple[str, Provider, Model]] = []
+        self.calls: list[tuple[str, Model]] = []
 
-    async def rewrite(
-        self, text: str, provider: Provider, model: Model
-    ) -> tuple[str, int]:
-        self.calls.append((text, provider, model))
+    async def rewrite(self, text: str, model: Model) -> tuple[str, int]:
+        self.calls.append((text, model))
         return self.result
 
 
@@ -71,7 +69,7 @@ async def test_rewrite_replies_and_charges_tokens(db: DBClient) -> None:
         _make_update("he go home"), context, db_client=db, llm_client=llm_client
     )
 
-    assert llm_client.calls == [("he go home", Provider.OPENROUTER, Model.GPT6_LUNA)]
+    assert llm_client.calls == [("he go home", Model.GPT6_LUNA)]
     context.bot.send_message.assert_awaited_once_with(chat_id=100, text="He went home.")
     assert db.get_or_create_account(user_id=42).tokens_balance == 999_900
 

@@ -2,16 +2,10 @@
 
 import os
 
-from sqlalchemy import BigInteger, text, update
+from sqlalchemy import BigInteger, inspect, text, update
 from sqlmodel import Field, Session, SQLModel, col, create_engine, select
 
-from pardon_my_english.llm import (
-    DEFAULT_MODEL,
-    DEFAULT_PROVIDER,
-    VALID_PROVIDER_MODEL_COMBINATIONS,
-    Model,
-    Provider,
-)
+from pardon_my_english.llm import DEFAULT_MODEL, Model
 
 _NUM_TOKENS_DEFAULT = 1_000_000
 
@@ -33,7 +27,6 @@ class Account(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(index=True, sa_type=BigInteger)  # Telegram user ID
     username: str | None
-    provider: Provider = Field(default=DEFAULT_PROVIDER)
     model: Model = Field(default=DEFAULT_MODEL)
     tokens_balance: int = Field(default=_NUM_TOKENS_DEFAULT)
     # Whether the user is a friend of the bot owner.
@@ -45,28 +38,21 @@ class DBClient:
     def __init__(self, db_url: str, echo: bool = False) -> None:
         self.engine = create_engine(normalize_db_url(db_url), echo=echo)
         SQLModel.metadata.create_all(self.engine)
-        self._reset_unsupported_models()
+        self._migrate()
 
-    def _reset_unsupported_models(self) -> None:
-        """Move accounts on a removed provider/model to the defaults.
-
-        Enums are stored by member name, so rows with names that no longer exist
-        would fail to load. This runs on every startup and is a no-op once migrated.
-        """
-        valid_pairs = " OR ".join(
-            f"(provider = '{provider.name}' AND model = '{model.name}')"
-            for provider, model in sorted(
-                VALID_PROVIDER_MODEL_COMBINATIONS, key=lambda pair: pair[0].name
-            )
-        )
+    def _migrate(self) -> None:
+        """Bring an existing database up to date. Runs on every startup; a no-op once migrated."""
+        table = Account.__table__.name  # ty: ignore[unresolved-attribute]
+        columns = {column["name"] for column in inspect(self.engine).get_columns(table)}
         with self.engine.begin() as connection:
+            # Accounts used to pick a provider (OpenAI, Ollama, ...); only OpenRouter is left.
+            if "provider" in columns:
+                connection.execute(text(f"ALTER TABLE {table} DROP COLUMN provider"))
+            # Enums are stored by member name, so rows on a removed model would fail to load.
             connection.execute(
-                text(
-                    f"UPDATE {Account.__tablename__} "
-                    "SET provider = :provider, model = :model "
-                    f"WHERE NOT ({valid_pairs})"
-                ),
-                {"provider": DEFAULT_PROVIDER.name, "model": DEFAULT_MODEL.name},
+                update(Account)
+                .where(col(Account.model).not_in(list(Model)))
+                .values(model=DEFAULT_MODEL)
             )
 
     def get_or_create_account(
